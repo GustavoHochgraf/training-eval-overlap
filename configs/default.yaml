@@ -1,0 +1,59 @@
+# ============================================================================
+# Default configuration for Carolina × PoetaV2 contamination analysis
+# Copy to configs/local.yaml and adjust paths for your environment.
+# ============================================================================
+
+paths:
+  carolina_dir: null        # Path to Carolina corpus files (Parquet / JSONL)
+  poetav2_dir: null          # Path to PoetaV2 benchmark task files
+  output_dir: results/
+
+extraction:
+  # Which PoetaV2 tasks to include (null = all)
+  tasks: null
+  # Fields to extract from each evaluation instance
+  fields: [question, context, answer, choices]
+  # Minimum text length (chars) to consider for contamination
+  min_length: 20
+
+normalization:
+  unicode: NFKC
+  lowercase: true
+  strip_whitespace: true
+  strip_punctuation: false   # Keep punctuation for first pass; strip in second
+  strip_accents: false       # Portuguese diacritics are semantically meaningful
+
+indexing:
+  # N-gram sizes for overlap detection
+  ngram_sizes: [8, 13]
+  # MinHash LSH parameters (for near-duplicate detection)
+  minhash_num_perm: 128
+  lsh_threshold: 0.5
+
+matching:
+  # Exact: normalized substring match
+  exact: true
+  # Near: n-gram Jaccard overlap
+  near:
+    enabled: true
+    threshold: 0.70
+    ngram_size: 8
+  # BM25 retrieval-based detection
+  bm25:
+    enabled: true
+    top_k: 5
+    score_threshold: null     # Auto-calibrated from non-benchmark data
+
+scoring:
+  # Minimum confidence to flag as contaminated
+  confidence_threshold: 0.8
+  # Bootstrap iterations for confidence intervals
+  bootstrap_n: 10000
+  bootstrap_ci: 0.95
+
+reporting:
+  # Output formats
+  formats: [csv, latex]
+  # Figures DPI
+  figure_dpi: 300
+  figure_format: pdf
