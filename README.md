@@ -41,31 +41,42 @@ pip install -e ".[dev]"
 cp configs/default.yaml configs/local.yaml
 # edit configs/local.yaml with your paths
 
-# 3. Run the contamination pipeline
-python scripts/run_pipeline.py --config configs/local.yaml
+# 3. Run semantic overlap detection (primary method)
+python scripts/run_semantic_search.py --config configs/local.yaml
 
-# 4. Generate report tables & figures
-python scripts/generate_report.py --results results/
+# 4. (Optional) Run n-gram overlap detection
+python scripts/run_pipeline.py --config configs/local.yaml
 ```
 
 ## Methodology
 
+Two complementary detection strategies are used:
+
+### A. Semantic Search (primary)
+
+Uses **BAAI/bge-m3** (state-of-the-art free multilingual embedding model) + **FAISS** for efficient nearest-neighbor retrieval.
+
 | Step | Description | Module |
 |------|-------------|--------|
 | 1. Extraction | Parse every PoetaV2 task into `(id, question, context, answer)` tuples | `src/contamination/extraction.py` |
-| 2. Normalization | Unicode NFKC, lowercasing, whitespace collapse, punctuation removal | `src/contamination/normalization.py` |
-| 3. N-gram indexing | Build n-gram (n = 8, 13) inverted index over the Carolina corpus | `src/contamination/indexing.py` |
-| 4. Matching | Exact substring, n-gram overlap (Jaccard), and BM25 retrieval | `src/contamination/matching.py` |
-| 5. Scoring | Per-instance contamination label with confidence; aggregate statistics | `src/contamination/scoring.py` |
-| 6. Reporting | Tables, plots, and LaTeX snippets for the paper | `src/contamination/reporting.py` |
+| 2. Embedding | Encode all Carolina docs and PoetaV2 instances with bge-m3 | `src/contamination/embeddings.py` |
+| 3. Retrieval | FAISS cosine similarity search — top-k nearest neighbors per instance | `src/contamination/embeddings.py` |
+| 4. Classification | Flag instances above similarity threshold as overlapping | `scripts/run_semantic_search.py` |
 
-### Contamination Definitions
+### B. N-gram Overlap (complementary)
 
-Following Oren et al. (2024) *"Proving Test Set Contamination in Black Box Language Models"* and the Llama-3 contamination protocol:
+| Step | Description | Module |
+|------|-------------|--------|
+| 1. Normalization | Unicode NFKC, lowercasing, whitespace collapse | `src/contamination/normalization.py` |
+| 2. N-gram indexing | Build n-gram (n = 8, 13) inverted index over Carolina | `src/contamination/indexing.py` |
+| 3. Matching | Exact substring + Jaccard overlap detection | `src/contamination/matching.py` |
+| 4. Scoring | Per-instance labels with bootstrap confidence intervals | `src/contamination/scoring.py` |
 
-- **Exact contamination**: an evaluation instance appears verbatim (after normalization) in the training corpus.
-- **Near contamination**: ≥ 70% n-gram overlap (n = 8) between the evaluation instance and any contiguous passage in the training corpus.
-- **Partial contamination**: BM25 top-1 retrieval score exceeds a calibrated threshold, indicating high lexical similarity without verbatim overlap.
+### Overlap Definitions
+
+- **Exact overlap**: an evaluation instance appears verbatim (after normalization) in the training corpus.
+- **Near overlap**: ≥ 70% n-gram overlap (n = 8) between the evaluation instance and any contiguous passage in the training corpus.
+- **Semantic overlap**: cosine similarity ≥ 0.85 between the embedding of an evaluation instance and any training passage (captures paraphrases and reformulations).
 
 ## References
 
