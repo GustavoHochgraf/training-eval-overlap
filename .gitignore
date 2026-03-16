@@ -10,6 +10,8 @@ build/
 .venv/
 venv/
 env/
+env_eval_overlap/
+env_eval_ovelap/
 
 # Data (large files — track with DVC or git-lfs if needed)
 data/raw/
@@ -37,3 +39,4 @@ results/**/*.bin
 # Secrets & local config
 configs/local.yaml
 .env
+poetry.toml

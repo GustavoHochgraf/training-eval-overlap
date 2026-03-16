@@ -1,0 +1,17 @@
+{
+  "model_slug": "multilingual_e5_large_instruct",
+  "model_label": "multilingual-e5-large-instruct",
+  "model_name": "intfloat/multilingual-e5-large-instruct",
+  "query_instruction": "Given a search query, retrieve relevant passages from the training corpus that may overlap with the query",
+  "threshold": 0.85,
+  "top_k": 5,
+  "batch_size": 8,
+  "max_carolina_docs": 1000,
+  "max_instances_per_task": 500,
+  "model_max_seq_length": 512,
+  "max_document_chars": 2000,
+  "carolina_documents": 993,
+  "total_instances": 11409,
+  "overlapping_instances": 3527,
+  "run_dir": "..\\results\\runs\\multilingual_e5_large_instruct"
+}

@@ -1,0 +1,16 @@
+task,baseline_rate_pct,candidate_rate_pct,delta_pp
+broverbs_mc_greedy,0.0,88.88888888888889,88.88888888888889
+tweetsentbr_greedy,0.0,77.0,77.0
+storycloze_pt_greedy,0.0,74.4,74.4
+bigbench_pt_causal_judgment_greedy,0.0,73.15789473684211,73.15789473684211
+bigbench_pt_analogical_similarity_greedy,0.0,72.33333333333334,72.33333333333334
+mina_br_greedy,0.0,72.0,72.0
+wsc285_pt_greedy,0.0,69.47368421052632,69.47368421052632
+bigbench_pt_social_iqa_greedy,0.0,57.99999999999999,57.99999999999999
+bigbench_pt_bbq_greedy,0.0,55.00000000000001,55.00000000000001
+pt_hate_speech_greedy,0.0,54.8,54.8
+broverbs_greedy,0.0,54.63917525773196,54.63917525773196
+bigbench_pt_simple_ethical_questions_greedy,0.0,43.47826086956522,43.47826086956522
+assin_sts_greedy,0.0,34.8,34.8
+assin_rte_greedy,0.0,34.4,34.4
+bigbench_pt_cause_and_effect_two_sentences_greedy,0.0,30.952380952380956,30.952380952380956

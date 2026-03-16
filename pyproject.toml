@@ -35,6 +35,11 @@ dev = [
 requires = ["setuptools>=75.0"]
 build-backend = "setuptools.build_meta"
 
+[tool.poetry]
+packages = [
+    { include = "contamination", from = "src" }
+]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

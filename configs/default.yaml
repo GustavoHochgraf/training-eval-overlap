@@ -25,11 +25,17 @@ normalization:
 
 # ---- Embedding-based semantic search (primary method) ----
 embeddings:
-  model: "BAAI/bge-m3"       # Best free multilingual embedding model
+  model: "BAAI/bge-m3"       # Recommended multilingual baseline for Portuguese reruns
   batch_size: 64
   top_k: 5                   # Nearest neighbors per query
   threshold: 0.85            # Cosine similarity threshold for "overlap"
   index_cache: data/processed/faiss_index  # Cache built index here
+  query_instruction: null    # Leave null for bge-m3; set only for models that require instructed queries
+  query_prefix: null         # Optional raw prefix such as "query: " for some embedding models
+  document_prefix: null      # Optional raw prefix such as "passage: " for some embedding models
+  # Example alternative:
+  # model: "intfloat/multilingual-e5-large-instruct"
+  # query_instruction: "Given a search query, retrieve relevant passages from the training corpus that may overlap with the query"
 
 # ---- N-gram overlap (complementary method) ----
 indexing:

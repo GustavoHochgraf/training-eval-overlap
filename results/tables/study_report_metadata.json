@@ -1,0 +1,63 @@
+{
+  "runs": [
+    {
+      "run_slug": "snapshot_bge_small_en",
+      "run_label": "Snapshot exploratorio",
+      "model_name": "BAAI/bge-small-en-v1.5",
+      "motivation": "Baseline rapido inicial para verificar viabilidade do pipeline.",
+      "carolina_documents": 993,
+      "tasks_loaded": 37,
+      "total_instances": 11409,
+      "threshold": 0.85,
+      "caps_truncation": "MAX_CAROLINA_DOCS=1000; MAX_INSTANCES_PER_TASK=500; sem truncation explicita",
+      "overlaps": 15,
+      "overlap_rate_pct": 0.1314751512,
+      "tasks_nonzero": 10,
+      "mean_top1_similarity": 0.763,
+      "max_similarity": 0.8696
+    },
+    {
+      "run_slug": "bge_m3",
+      "run_label": "BGE-M3",
+      "model_name": "BAAI/bge-m3",
+      "motivation": "Rerun multilingue principal com encoder retrieval-oriented.",
+      "carolina_documents": 993,
+      "tasks_loaded": 37,
+      "total_instances": 11409,
+      "threshold": 0.85,
+      "caps_truncation": "MAX_CAROLINA_DOCS=1000; MAX_INSTANCES_PER_TASK=500; max_seq_length=512; max_document_chars=2000",
+      "overlaps": 0,
+      "overlap_rate_pct": 0.0,
+      "tasks_nonzero": 0,
+      "mean_top1_similarity": 0.4929302574,
+      "max_similarity": 0.7354430556
+    },
+    {
+      "run_slug": "multilingual_e5_large_instruct",
+      "run_label": "multilingual-e5-large-instruct",
+      "model_name": "intfloat/multilingual-e5-large-instruct",
+      "motivation": "Rerun multilingue alternativo com query instruction explicita.",
+      "carolina_documents": 993,
+      "tasks_loaded": 37,
+      "total_instances": 11409,
+      "threshold": 0.85,
+      "caps_truncation": "MAX_CAROLINA_DOCS=1000; MAX_INSTANCES_PER_TASK=500; max_seq_length=512; max_document_chars=2000",
+      "overlaps": 3527,
+      "overlap_rate_pct": 30.9141905513,
+      "tasks_nonzero": 34,
+      "mean_top1_similarity": 0.8393527228,
+      "max_similarity": 0.9264017344
+    }
+  ],
+  "thresholds_compared": [
+    0.8,
+    0.82,
+    0.85,
+    0.88,
+    0.9
+  ],
+  "notes": [
+    "Snapshot inicial usa metadados consolidados do notebook exploratorio previamente versionado.",
+    "Rodadas locais multilingues usam truncation explicita e max_seq_length reduzido para viabilizar execucao reproduzivel em GPU local."
+  ]
+}

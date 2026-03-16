@@ -14,7 +14,12 @@ from pathlib import Path
 import faiss
 import numpy as np
 from sentence_transformers import SentenceTransformer
-from tqdm import tqdm
+
+from contamination.embedding_profiles import (
+    format_document_text,
+    format_query_text,
+    resolve_text_config,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +44,18 @@ class EmbeddingIndex:
         model_name: str = DEFAULT_MODEL,
         batch_size: int = 64,
         device: str | None = None,
+        query_instruction: str | None = None,
+        query_prefix: str | None = None,
+        document_prefix: str | None = None,
     ) -> None:
         self.model_name = model_name
         self.batch_size = batch_size
+        self.text_config = resolve_text_config(
+            model_name,
+            query_instruction=query_instruction,
+            query_prefix=query_prefix,
+            document_prefix=document_prefix,
+        )
 
         logger.info("Loading embedding model: %s", model_name)
         self.model = SentenceTransformer(model_name, device=device)
@@ -61,10 +75,14 @@ class EmbeddingIndex:
         """
         self.doc_ids = [doc_id for doc_id, _ in documents]
         self.doc_texts = [text for _, text in documents]
+        encoded_documents = [
+            format_document_text(text, document_prefix=self.text_config.document_prefix)
+            for text in self.doc_texts
+        ]
 
         logger.info("Encoding %d documents with %s ...", len(self.doc_texts), self.model_name)
         embeddings = self.model.encode(
-            self.doc_texts,
+            encoded_documents,
             batch_size=self.batch_size,
             show_progress_bar=True,
             normalize_embeddings=True,  # cosine similarity via inner product
@@ -99,9 +117,18 @@ class EmbeddingIndex:
         if self.index is None:
             raise RuntimeError("Index not built. Call build_index() first.")
 
+        encoded_queries = [
+            format_query_text(
+                query,
+                query_instruction=self.text_config.query_instruction,
+                query_prefix=self.text_config.query_prefix,
+            )
+            for query in queries
+        ]
+
         logger.info("Encoding %d queries ...", len(queries))
         query_embeddings = self.model.encode(
-            queries,
+            encoded_queries,
             batch_size=self.batch_size,
             show_progress_bar=True,
             normalize_embeddings=True,

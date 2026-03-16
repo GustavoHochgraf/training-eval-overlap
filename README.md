@@ -1,177 +1,139 @@
 # Training-Eval Overlap: Carolina x PoetaV2
 
-This repository audits possible benchmark contamination between the Carolina corpus and PoetaV2 evaluation tasks.
+Este repositorio investiga o acoplamento entre o corpus Carolina, usado como base de treino em portugues, e o benchmark PoetaV2, usado para avaliar o modelo. A pergunta central nao e apenas "ha vazamento?", mas tambem "o avaliador esta suficientemente dissociado do universo do corpus para sustentar uma avaliacao confiavel?".
 
-The current codebase has two complementary entry points:
+O pacote documental deste estudo agora tem dois niveis:
 
-- `notebooks/training_eval_overlap.ipynb` runs the end-to-end exploratory Colab workflow, including Carolina download, PoetaV2 task loading, FAISS retrieval, plots, and report tables.
-- `scripts/run_semantic_search.py` and `scripts/run_pipeline.py` provide reusable local CLI entry points once Carolina and PoetaV2 data are available on disk.
+- `README.md`: resumo executivo, curto e visual.
+- `RELATORIO_ACADEMICO_COMPLETO.md`: anexo tecnico completo, pronto para orientador e grupo de pesquisa.
 
-> Current committed snapshot: the notebook quick run indexed 993 Carolina documents, searched 11,409 PoetaV2 instances from 37 tasks, and flagged 15 instances above cosine similarity 0.85 (0.13% overall).
+## Resumo Executivo
 
-## Snapshot At a Glance
+O estudo encontrou um resultado metodologicamente forte: a leitura sobre overlap Carolina x PoetaV2 mudou drasticamente conforme o encoder utilizado. O snapshot inicial com modelo ingles indicou sinal baixo, o rerun com `BAAI/bge-m3` zerou no threshold herdado (`0.85`), e o rerun com `multilingual-e5-large-instruct` explodiu para `30,91%`. A conclusao correta nao e "nao ha problema" nem "ha contaminacao confirmada", mas sim que o estudo e altamente sensivel a modelo, threshold e preprocessamento, o que exige calibracao e validacao manual antes de qualquer afirmacao forte.
 
-The numbers below come from the executed notebook currently committed in this repository.
+## Rodadas Executadas
 
-| Metric | Value |
-| --- | --- |
-| Carolina documents indexed | 993 |
-| PoetaV2 tasks attempted | 43 |
-| Tasks loaded successfully | 37 |
-| Tasks that failed to load | 6 |
-| Evaluation instances searched | 11,409 |
-| Embedding model used in the notebook snapshot | `BAAI/bge-small-en-v1.5` |
-| Retrieval backend | FAISS top-5 nearest neighbors |
-| Overlap threshold | cosine similarity `>= 0.85` |
-| Flagged overlaps | 15 |
-| Overall overlap rate | 0.13% |
-| 95% bootstrap CI | [0.07%, 0.20%] |
-| Mean top-1 similarity | 0.763 |
+| Rodada | Modelo | Objetivo da rodada | Docs Carolina | Instancias PoetaV2 | Threshold | Overlaps | Taxa | Tasks com overlap > 0 | Caps e truncation |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Snapshot exploratorio | `BAAI/bge-small-en-v1.5` | Verificar viabilidade do pipeline com run rapida inicial | 993 | 11.409 | 0,85 | 15 | 0,13% | 10/37 | `MAX_CAROLINA_DOCS=1000`; `MAX_INSTANCES_PER_TASK=500`; sem truncation explicita |
+| Rerun multilingue principal | `BAAI/bge-m3` | Repetir o estudo com encoder retrieval-oriented realmente multilingue | 993 | 11.409 | 0,85 | 0 | 0,00% | 0/37 | `MAX_CAROLINA_DOCS=1000`; `MAX_INSTANCES_PER_TASK=500`; `max_seq_length=512`; `max_document_chars=2000` |
+| Rerun multilingue alternativo | `intfloat/multilingual-e5-large-instruct` | Testar alternativa multilingue com query instruction explicita | 993 | 11.409 | 0,85 | 3.527 | 30,91% | 34/37 | `MAX_CAROLINA_DOCS=1000`; `MAX_INSTANCES_PER_TASK=500`; `max_seq_length=512`; `max_document_chars=2000` |
 
-## What the Current Results Say
+Tabela consolidada em `results/tables/study_run_summary.csv`.
 
-- The observed overlap signal is low in this quick run: only 15 of 11,409 evaluation instances crossed the similarity threshold.
-- 27 of the 37 loaded tasks had zero flagged examples.
-- The highest overlap rates were in `enem_greedy` and `enem_2022_greedy` with 2 flagged items each out of 180 instances (1.11%).
-- `bluex_launch_version_` had the largest absolute count of flagged items: 3 out of 500.
-- Manual inspection of the top-ranked matches suggests many hits are weak semantic neighbors or false positives, not obvious verbatim leakage.
+## Principais Conclusoes
 
-## Visual Snapshot
+- O estudo nao sustenta uma conclusao simples sobre contaminacao; ele sustenta uma conclusao forte sobre sensibilidade metodologica.
+- O snapshot inicial ingles apontou baixo sinal (`15/11.409`), mas ele nao era adequado como evidencia final para portugues.
+- O `BAAI/bge-m3` nao produziu nenhum caso acima de `0,85`; isso mostra que o threshold herdado ficou acima do suporte observado nessa rodada.
+- O `multilingual-e5-large-instruct` produziu `3.527` casos acima de `0,85`, mas com forte concentracao em poucos documentos Carolina e em textos que parecem dialogos, legendas e transcricoes genericas.
+- A combinacao "mesmo threshold para todos os modelos" nao e defensavel aqui sem calibracao supervisionada por modelo.
+- O principal achado do estudo e que a avaliacao Carolina x PoetaV2 precisa de uma auditoria mais robusta antes de sustentar inferencias sobre capacidade geral do modelo.
 
-Top-1 similarity distribution and per-task overlap rates:
+## Por Que Fizemos Novas Rodadas Multilingues
 
-![Similarity distribution and overlap rate by task](results/figures/overlap_distribution_snapshot.png)
+As rodadas novas foram necessarias por uma preocupacao central de validade linguistica:
 
-Per-task heatmap:
+- o snapshot inicial usou `bge-small-en-v1.5`, um baseline rapido e ingles-centrado;
+- o corpus Carolina e o benchmark PoetaV2 sao, em grande parte, portugueses;
+- portanto, era metodologicamente importante repetir o estudo com encoders multilingues de retrieval mais adequados ao dominio linguistico da analise.
 
-![Per-task overlap heatmap](results/figures/overlap_heatmap_snapshot.png)
+O rerun recente tambem exigiu ajustes explicitos de throughput para rodar de forma reproduzivel em GPU local:
 
-## Tasks With Non-Zero Flagged Overlap
+- os documentos Carolina sao muito longos em forma bruta;
+- `bge-m3` vinha com `max_seq_length` alto demais para uma execucao local confortavel;
+- por isso a rodada local foi registrada com truncation explicita: `max_seq_length=512` e `max_document_chars=2000`.
 
-| Task | Flagged | Total | Rate | 95% CI |
-| --- | ---: | ---: | ---: | --- |
-| `enem_greedy` | 2 | 180 | 1.11% | [0.00%, 2.78%] |
-| `enem_2022_greedy` | 2 | 180 | 1.11% | [0.00%, 2.78%] |
-| `bigbench_pt_simple_ethical_questions_greedy` | 1 | 115 | 0.87% | [0.00%, 2.61%] |
-| `bluex_launch_version_` | 3 | 500 | 0.60% | [0.00%, 1.40%] |
-| `mina_br_greedy` | 2 | 500 | 0.40% | [0.00%, 1.00%] |
-| `assin_sts_greedy` | 1 | 500 | 0.20% | [0.00%, 0.60%] |
-| `mkqa_greedy` | 1 | 500 | 0.20% | [0.00%, 0.60%] |
-| `pt_hate_speech_greedy` | 1 | 500 | 0.20% | [0.00%, 0.60%] |
-| `assin_rte_greedy` | 1 | 500 | 0.20% | [0.00%, 0.60%] |
-| `storycloze_pt_greedy` | 1 | 500 | 0.20% | [0.00%, 0.60%] |
+## Leitura Correta Dos Resultados
 
-The full snapshot table is available in `results/tables/overlap_summary_snapshot.csv`.
+**O que os dados sugerem**
 
-## Examples From Manual Inspection
+- O benchmark e altamente sensivel ao encoder e ao threshold escolhido.
+- A proximidade semantica observada entre Carolina e PoetaV2 pode estar sendo inflada, em parte, por material narrativo generico e ruidoso presente no Carolina.
+- O threshold `0,85` nao mede a mesma coisa em `bge-m3` e `multilingual-e5-large-instruct`.
 
-The notebook exported the top-20 most suspicious matches for qualitative review. A few representative examples:
+**O que os dados ainda nao provam**
 
-| Task | Similarity | Qualitative read |
-| --- | ---: | --- |
-| `bluex_launch_version_` | 0.8696 | Literary benchmark prompt matched unrelated narrative prose from Carolina. |
-| `mina_br_greedy` | 0.8585 | Toxic social-media style text matched subtitle-like dialogue from a different source. |
-| `storycloze_pt_greedy` | 0.8548 | Christmas mini-story matched a Futurama subtitle fragment about Christmas. |
-| `enem_greedy` | 0.8574 | An ENEM reading excerpt matched anime-style subtitle text rather than an obvious duplicate. |
+- Nao provam que PoetaV2 esteja "limpo".
+- Nao provam que PoetaV2 esteja "contaminado".
+- Nao provam que os `3.527` casos do `e5` sejam vazamento real.
+- Nao provam que `0` casos no `bge-m3` impliquem ausencia de proximidade semantica relevante.
 
-This matters because the current threshold is good for recall, but manual inspection is still necessary before labeling a hit as true contamination.
+## Visual Resumido
 
-The raw top-20 snapshot is stored in `results/tables/top20_suspicious_matches_snapshot.csv`.
+Comparacao direta da taxa de overlap entre as tres rodadas:
 
-## Failed Task Loads in the Notebook Run
+![Taxa de overlap por rodada](results/figures/overall_overlap_rate_comparison.png)
 
-Six tasks did not load in the current exploratory run because some Hugging Face datasets still depend on deprecated dataset scripts or `trust_remote_code` behavior:
+Distribuicoes por rodada:
 
-- `agnews_pt_greedy`
-- `boolq_pt_greedy`
-- `imdb_pt_greedy`
-- `sst2_pt_greedy`
-- `hatebr_binary_greedy`
-- `massive_greedy`
+- Snapshot exploratorio: ![Snapshot](results/figures/overlap_distribution_snapshot.png)
+- `BAAI/bge-m3`: ![BGE-M3](results/runs/bge_m3/figures/overlap_distribution.png)
+- `multilingual-e5-large-instruct`: ![multilingual-e5-large-instruct](results/runs/multilingual_e5_large_instruct/figures/overlap_distribution.png)
 
-## Repository Layout
+Artefatos visuais adicionais:
 
-```text
-training-eval-overlap/
-|-- configs/
-|-- data/
-|-- notebooks/
-|   `-- training_eval_overlap.ipynb
-|-- results/
-|   |-- figures/
-|   `-- tables/
-|-- scripts/
-|-- src/contamination/
-`-- tests/
+- Heatmap do snapshot: `results/figures/overlap_heatmap_snapshot.png`
+- Heatmap `bge_m3`: `results/runs/bge_m3/figures/overlap_heatmap.png`
+- Heatmap `multilingual_e5_large_instruct`: `results/runs/multilingual_e5_large_instruct/figures/overlap_heatmap.png`
+
+## Tabelas-Chave
+
+- Consolidado das rodadas: `results/tables/study_run_summary.csv`
+- Sensibilidade por threshold: `results/tables/threshold_sensitivity_summary.csv`
+- Top hub documents do `e5`: `results/tables/e5_hub_documents.csv`
+- Maiores deltas por task entre `bge_m3` e `e5`: `results/tables/top_task_deltas_summary.csv`
+- Comparacao completa entre runs: `results/runs/comparison/model_comparison.md`
+
+## Limitacoes Principais
+
+- O estudo ainda usa apenas `993` documentos Carolina, nao o corpus completo.
+- Cada task PoetaV2 foi truncada em `500` instancias no snapshot e nos reruns recentes.
+- Apenas `37` de `43` tasks foram carregadas com sucesso.
+- O snapshot inicial usou um encoder rapido ingles-centrado.
+- Os reruns locais multilingues usam truncation explicita, o que melhora throughput mas muda a unidade efetiva de comparacao.
+- Ainda nao ha calibracao supervisionada do threshold por modelo.
+- Similaridade alta continua sendo apenas um sinal de suspeita; nao equivale a contaminacao confirmada.
+
+## Proximos Passos
+
+- Calibrar threshold por modelo com amostra anotada manualmente.
+- Trocar truncation simples por chunking em passagens.
+- Repetir a auditoria no corpus Carolina completo.
+- Remover o cap de `500` instancias por task.
+- Corrigir ou substituir as `6` tasks que falharam no carregamento.
+- Agrupar benchmarks por familia para nao tratar variantes proximas como evidencias independentes.
+
+## Arquivos Principais
+
+- Anexo tecnico completo: `RELATORIO_ACADEMICO_COMPLETO.md`
+- Relatorio historico do snapshot inicial: `RELATORIO_ACADEMICO_SNAPSHOT.md`
+- Notebook exploratorio inicial: `notebooks/training_eval_overlap.ipynb`
+- Notebook rerun multilingue: `notebooks/training_eval_overlap_multilingual_rerun.ipynb`
+- Script que gera as tabelas e figura consolidadas do estudo: `scripts/build_study_report_artifacts.py`
+
+## Reproducao
+
+Ambiente local:
+
+```powershell
+cd training-eval-overlap
+.\env_eval_overlap\Scripts\Activate.ps1
+poetry install --extras dev
 ```
 
-## Reproduce the Notebook Snapshot
+Para reconstruir os artefatos consolidados do relatorio:
 
-Install the project:
-
-```bash
-pip install -e ".[dev]"
+```powershell
+python scripts/build_study_report_artifacts.py
 ```
 
-Open the notebook:
+Para rerodar o notebook multilingue:
 
-```bash
-jupyter notebook notebooks/training_eval_overlap.ipynb
-```
+- selecione o kernel `Python (env_eval_overlap)`;
+- abra `notebooks/training_eval_overlap_multilingual_rerun.ipynb`;
+- rode o notebook do topo.
 
-Important notebook settings in the current snapshot:
+## Observacao Final
 
-- `MAX_CAROLINA_DOCS = 1000`
-- `MAX_INSTANCES_PER_TASK = 500`
-- `SIMILARITY_THRESHOLD = 0.85`
-- `EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"`
-
-For a fuller audit, rerun with:
-
-- `MAX_CAROLINA_DOCS = None`
-- `MAX_INSTANCES_PER_TASK = None`
-- `EMBEDDING_MODEL = "BAAI/bge-m3"` or another stronger multilingual encoder
-
-The notebook expects internet access and, in some environments, a valid `HF_TOKEN` for smoother dataset access.
-
-## Run the Local CLI Pipeline
-
-Copy the default config and point it to local Carolina and PoetaV2 directories:
-
-```bash
-cp configs/default.yaml configs/local.yaml
-```
-
-Then run semantic search:
-
-```bash
-python scripts/run_semantic_search.py --config configs/local.yaml --model BAAI/bge-m3
-```
-
-Optional complementary n-gram pipeline:
-
-```bash
-python scripts/run_pipeline.py --config configs/local.yaml
-```
-
-Note: the notebook currently contains the most complete PoetaV2 task-loading logic. The local CLI assumes your benchmark files already exist in a local directory layout that `src/contamination/extraction.py` can read.
-
-## Committed Snapshot Artifacts
-
-These files were added to make the current result snapshot visible directly on GitHub:
-
-- `results/figures/overlap_distribution_snapshot.png`
-- `results/figures/overlap_heatmap_snapshot.png`
-- `results/tables/overlap_summary_snapshot.csv`
-- `results/tables/top20_suspicious_matches_snapshot.csv`
-
-## Current Limitations
-
-- This is not yet a full-corpus audit. The committed notebook snapshot uses only the first 1,000 streamed Carolina documents, of which 993 passed the minimum-length filter.
-- The notebook snapshot uses `BAAI/bge-small-en-v1.5` for speed on Colab. The packaged CLI defaults to `BAAI/bge-m3`.
-- Six benchmark tasks failed to load because of upstream dataset-loader restrictions.
-- High similarity alone is not enough to prove contamination; the most suspicious hits still require manual review.
-
-## Next Recommended Step
-
-Rerun the full audit with the complete Carolina corpus, no per-task cap, and a stronger multilingual embedding model. That will turn this repository from a strong exploratory snapshot into a publishable contamination analysis baseline.
+Este repositorio agora registra um resultado importante para o projeto: antes de usar PoetaV2 como evidencia forte de melhoria do modelo treinado em Carolina, e preciso auditar com mais rigor o quanto essa avaliacao depende do encoder, do threshold e da forma como o corpus Carolina e apresentado ao sistema de busca semantica.

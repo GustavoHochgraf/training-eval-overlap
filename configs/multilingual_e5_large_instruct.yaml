@@ -1,0 +1,48 @@
+# Strong multilingual comparison rerun for Portuguese semantic overlap.
+
+paths:
+  carolina_dir: null
+  poetav2_dir: null
+  output_dir: results/runs/multilingual_e5_large_instruct/
+
+extraction:
+  tasks: null
+  fields: [question, context, answer, choices]
+  min_length: 20
+
+normalization:
+  unicode: NFKC
+  lowercase: true
+  strip_whitespace: true
+  strip_punctuation: false
+  strip_accents: false
+
+embeddings:
+  model: "intfloat/multilingual-e5-large-instruct"
+  batch_size: 16
+  top_k: 5
+  threshold: 0.85
+  index_cache: data/processed/faiss_index_multilingual_e5_large_instruct
+  query_instruction: "Given a search query, retrieve relevant passages from the training corpus that may overlap with the query"
+  query_prefix: null
+  document_prefix: null
+
+indexing:
+  ngram_sizes: [8, 13]
+
+matching:
+  exact: true
+  near:
+    enabled: true
+    threshold: 0.70
+    ngram_size: 8
+
+scoring:
+  confidence_threshold: 0.8
+  bootstrap_n: 10000
+  bootstrap_ci: 0.95
+
+reporting:
+  formats: [csv, latex, parquet]
+  figure_dpi: 300
+  figure_format: pdf

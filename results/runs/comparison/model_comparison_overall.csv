@@ -1,0 +1,3 @@
+run,model_name,overlaps,total_instances,overlap_rate_pct
+BGE-M3,BAAI/bge-m3,0,11409,0.0
+multilingual-e5-large-instruct,intfloat/multilingual-e5-large-instruct,3527,11409,30.91419055131913

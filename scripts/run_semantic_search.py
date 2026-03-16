@@ -116,7 +116,13 @@ def main():
 
     # --- Step 2: Build or load embedding index over Carolina ---
     logger.info("=== Step 2: Building embedding index over Carolina corpus ===")
-    emb_index = EmbeddingIndex(model_name=model_name, batch_size=embed_cfg.get("batch_size", 64))
+    emb_index = EmbeddingIndex(
+        model_name=model_name,
+        batch_size=embed_cfg.get("batch_size", 64),
+        query_instruction=embed_cfg.get("query_instruction"),
+        query_prefix=embed_cfg.get("query_prefix"),
+        document_prefix=embed_cfg.get("document_prefix"),
+    )
 
     index_cache = Path(args.index_cache) if args.index_cache else None
     if index_cache and (index_cache / "index.faiss").exists():
@@ -161,10 +167,12 @@ def main():
     # --- Step 5: Save results ---
     logger.info("=== Step 5: Saving results ===")
     output_dir.mkdir(parents=True, exist_ok=True)
+    tables_dir = output_dir / "tables"
+    tables_dir.mkdir(parents=True, exist_ok=True)
 
     df = pd.DataFrame(rows)
-    df.to_csv(output_dir / "tables" / "semantic_overlap_instances.csv", index=False)
-    df.to_parquet(output_dir / "tables" / "semantic_overlap_instances.parquet", index=False)
+    df.to_csv(tables_dir / "semantic_overlap_instances.csv", index=False)
+    df.to_parquet(tables_dir / "semantic_overlap_instances.parquet", index=False)
 
     # Per-task summary
     summary_rows = []
@@ -180,7 +188,27 @@ def main():
         })
 
     df_summary = pd.DataFrame(summary_rows).sort_values("overlap_rate", ascending=False)
-    df_summary.to_csv(output_dir / "tables" / "semantic_overlap_by_task.csv", index=False)
+    df_summary.to_csv(tables_dir / "semantic_overlap_by_task.csv", index=False)
+
+    total_all = sum(s["total"] for s in task_stats.values())
+    overlap_all = sum(s["overlapping"] for s in task_stats.values())
+    run_metadata = {
+        "model_name": model_name,
+        "batch_size": embed_cfg.get("batch_size", 64),
+        "query_instruction": embed_cfg.get("query_instruction"),
+        "query_prefix": embed_cfg.get("query_prefix"),
+        "document_prefix": embed_cfg.get("document_prefix"),
+        "threshold": threshold,
+        "top_k": top_k,
+        "total_instances": total_all,
+        "overlapping_instances": overlap_all,
+        "carolina_documents": len(emb_index.doc_ids),
+        "output_dir": str(output_dir),
+    }
+    (tables_dir / "semantic_overlap_run_metadata.json").write_text(
+        json.dumps(run_metadata, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
 
     # --- Display results ---
     console.print()
@@ -199,8 +227,6 @@ def main():
         )
 
     # Overall
-    total_all = sum(s["total"] for s in task_stats.values())
-    overlap_all = sum(s["overlapping"] for s in task_stats.values())
     table.add_section()
     table.add_row(
         "OVERALL",
